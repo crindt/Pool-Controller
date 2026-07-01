@@ -994,36 +994,46 @@ text_sensor:
       // Find which schedule is currently active
       // Check from Schedule 5 down to Schedule 1
       int s5_start = id(schedule5_start).hour * 60 + id(schedule5_start).minute;
-      if (time_minutes >= s5_start && id(schedule5_speed).current_option() != "Off") {
-        std::string status = std::string("Schedule 5: ") + id(schedule5_speed).current_option();
+      if (time_minutes >= s5_start) {
+        std::string speed = id(schedule5_speed).current_option();
+        if (speed == "Off") return {"Off (Scheduled)"};
+        std::string status = std::string("Schedule 5: ") + speed;
         if (id(schedule5_waterfall).state) status += " + Waterfall";
         return {status};
       }
-
+      
       int s4_start = id(schedule4_start).hour * 60 + id(schedule4_start).minute;
-      if (time_minutes >= s4_start && id(schedule4_speed).current_option() != "Off") {
-        std::string status = std::string("Schedule 4: ") + id(schedule4_speed).current_option();
+      if (time_minutes >= s4_start) {
+        std::string speed = id(schedule4_speed).current_option();
+        if (speed == "Off") return {"Off (Scheduled)"};
+        std::string status = std::string("Schedule 4: ") + speed;
         if (id(schedule4_waterfall).state) status += " + Waterfall";
         return {status};
       }
-
+      
       int s3_start = id(schedule3_start).hour * 60 + id(schedule3_start).minute;
-      if (time_minutes >= s3_start && id(schedule3_speed).current_option() != "Off") {
-        std::string status = std::string("Schedule 3: ") + id(schedule3_speed).current_option();
+      if (time_minutes >= s3_start) {
+        std::string speed = id(schedule3_speed).current_option();
+        if (speed == "Off") return {"Off (Scheduled)"};
+        std::string status = std::string("Schedule 3: ") + speed;
         if (id(schedule3_waterfall).state) status += " + Waterfall";
         return {status};
       }
-
+      
       int s2_start = id(schedule2_start).hour * 60 + id(schedule2_start).minute;
-      if (time_minutes >= s2_start && id(schedule2_speed).current_option() != "Off") {
-        std::string status = std::string("Schedule 2: ") + id(schedule2_speed).current_option();
+      if (time_minutes >= s2_start) {
+        std::string speed = id(schedule2_speed).current_option();
+        if (speed == "Off") return {"Off (Scheduled)"};
+        std::string status = std::string("Schedule 2: ") + speed;
         if (id(schedule2_waterfall).state) status += " + Waterfall";
         return {status};
       }
-
+      
       int s1_start = id(schedule1_start).hour * 60 + id(schedule1_start).minute;
-      if (time_minutes >= s1_start && id(schedule1_speed).current_option() != "Off") {
-        std::string status = std::string("Schedule 1: ") + id(schedule1_speed).current_option();
+      if (time_minutes >= s1_start) {
+        std::string speed = id(schedule1_speed).current_option();
+        if (speed == "Off") return {"Off (Scheduled)"};
+        std::string status = std::string("Schedule 1: ") + speed;
         if (id(schedule1_waterfall).state) status += " + Waterfall";
         return {status};
       }
@@ -1039,36 +1049,34 @@ text_sensor:
       // Get all schedule start times in minutes
       struct Schedule {
         int start;
-        bool enabled;
+        std::string speed;
         int num;
       };
-
+    
       Schedule schedules[5];
       schedules[0] = {id(schedule1_start).hour * 60 + id(schedule1_start).minute,
-                      id(schedule1_speed).current_option() != "Off", 1};
+                      id(schedule1_speed).current_option(), 1};
       schedules[1] = {id(schedule2_start).hour * 60 + id(schedule2_start).minute,
-                      id(schedule2_speed).current_option() != "Off", 2};
+                      id(schedule2_speed).current_option(), 2};
       schedules[2] = {id(schedule3_start).hour * 60 + id(schedule3_start).minute,
-                      id(schedule3_speed).current_option() != "Off", 3};
+                      id(schedule3_speed).current_option(), 3};
       schedules[3] = {id(schedule4_start).hour * 60 + id(schedule4_start).minute,
-                      id(schedule4_speed).current_option() != "Off", 4};
+                      id(schedule4_speed).current_option(), 4};
       schedules[4] = {id(schedule5_start).hour * 60 + id(schedule5_start).minute,
-                      id(schedule5_speed).current_option() != "Off", 5};
-
+                      id(schedule5_speed).current_option(), 5};
+    
       int pump_end = id(pump_end_time).hour * 60 + id(pump_end_time).minute;
-
-      // Check that enabled schedules are in ascending order
-      int last_start = -1;
+    
+      // Check that all schedules are in ascending order by start time
       for (int i = 0; i < 5; i++) {
-        if (!schedules[i].enabled) continue;
-        if (last_start >= 0 && schedules[i].start <= last_start) {
+        if (i > 0 && schedules[i].start <= schedules[i-1].start) {
           char msg[100];
-          snprintf(msg, sizeof(msg), "WARNING: Schedule %d start must be after previous schedule!", schedules[i].num);
+          snprintf(msg, sizeof(msg), "WARNING: Schedule %d start must be after Schedule %d!",
+                   schedules[i].num, schedules[i-1].num);
           ESP_LOGW("schedule", "%s", msg);
           return {std::string(msg)};
         }
-        last_start = schedules[i].start;
-        
+    
         // Check that start is before pump end time
         if (schedules[i].start >= pump_end) {
           char msg[100];
@@ -1077,7 +1085,7 @@ text_sensor:
           return {std::string(msg)};
         }
       }
-
+    
       return {"All schedules valid"};
 
   # Schedule Status Indicators
@@ -1088,36 +1096,54 @@ text_sensor:
     update_interval: 10s
     lambda: |-
       if (!id(schedule_enabled)) return {"${right_arrow}"};
-      
+    
       auto time = id(homeassistant_time).now();
       if (!time.is_valid()) return {""};
-      
+    
       int time_minutes = time.hour * 60 + time.minute;
       int pump_end = id(pump_end_time).hour * 60 + id(pump_end_time).minute;
-      
-      // Check if after pump end time or before any schedule
+    
+      // Check if after pump end time
       if (time_minutes >= pump_end) {
         return {"${right_arrow}"};
       }
-      
-      // Check if before first enabled schedule
-      int s1_start = id(schedule1_start).hour * 60 + id(schedule1_start).minute;
-      if (time_minutes < s1_start || id(schedule1_speed).current_option() == "Off") {
-        // Check all other schedules
-        int s2_start = id(schedule2_start).hour * 60 + id(schedule2_start).minute;
-        int s3_start = id(schedule3_start).hour * 60 + id(schedule3_start).minute;
-        int s4_start = id(schedule4_start).hour * 60 + id(schedule4_start).minute;
-        int s5_start = id(schedule5_start).hour * 60 + id(schedule5_start).minute;
-        
-        if ((time_minutes < s2_start || id(schedule2_speed).current_option() == "Off") &&
-            (time_minutes < s3_start || id(schedule3_speed).current_option() == "Off") &&
-            (time_minutes < s4_start || id(schedule4_speed).current_option() == "Off") &&
-            (time_minutes < s5_start || id(schedule5_speed).current_option() == "Off")) {
-          return {"${right_arrow}"};
-        }
+    
+      // Find the active schedule (same logic as the interval lambda)
+      // Check from Schedule 5 down to Schedule 1
+      int s5_start = id(schedule5_start).hour * 60 + id(schedule5_start).minute;
+      if (time_minutes >= s5_start) {
+        // Schedule 5 is active — show Off arrow if it's set to Off
+        if (id(schedule5_speed).current_option() == "Off") return {"${right_arrow}"};
+        return {""};
       }
-      return {""};
-
+    
+      int s4_start = id(schedule4_start).hour * 60 + id(schedule4_start).minute;
+      if (time_minutes >= s4_start) {
+        if (id(schedule4_speed).current_option() == "Off") return {"${right_arrow}"};
+        return {""};
+      }
+    
+      int s3_start = id(schedule3_start).hour * 60 + id(schedule3_start).minute;
+      if (time_minutes >= s3_start) {
+        if (id(schedule3_speed).current_option() == "Off") return {"${right_arrow}"};
+        return {""};
+      }
+    
+      int s2_start = id(schedule2_start).hour * 60 + id(schedule2_start).minute;
+      if (time_minutes >= s2_start) {
+        if (id(schedule2_speed).current_option() == "Off") return {"${right_arrow}"};
+        return {""};
+      }
+    
+      int s1_start = id(schedule1_start).hour * 60 + id(schedule1_start).minute;
+      if (time_minutes >= s1_start) {
+        if (id(schedule1_speed).current_option() == "Off") return {"${right_arrow}"};
+        return {""};
+      }
+    
+      // Before first schedule start
+      return {"${right_arrow}"};
+  
   - platform: template
     name: "Schedule 1 Status"
     id: schedule_1_status
@@ -1125,7 +1151,6 @@ text_sensor:
     update_interval: 10s
     lambda: |-
       if (!id(schedule_enabled)) return {""};
-      if (id(schedule1_speed).current_option() == "Off") return {""};
       
       auto time = id(homeassistant_time).now();
       if (!time.is_valid()) return {""};
@@ -1150,7 +1175,6 @@ text_sensor:
     update_interval: 10s
     lambda: |-
       if (!id(schedule_enabled)) return {""};
-      if (id(schedule2_speed).current_option() == "Off") return {""};
       
       auto time = id(homeassistant_time).now();
       if (!time.is_valid()) return {""};
@@ -1175,7 +1199,6 @@ text_sensor:
     update_interval: 10s
     lambda: |-
       if (!id(schedule_enabled)) return {""};
-      if (id(schedule3_speed).current_option() == "Off") return {""};
       
       auto time = id(homeassistant_time).now();
       if (!time.is_valid()) return {""};
@@ -1200,7 +1223,6 @@ text_sensor:
     update_interval: 10s
     lambda: |-
       if (!id(schedule_enabled)) return {""};
-      if (id(schedule4_speed).current_option() == "Off") return {""};
       
       auto time = id(homeassistant_time).now();
       if (!time.is_valid()) return {""};
@@ -1225,7 +1247,6 @@ text_sensor:
     update_interval: 10s
     lambda: |-
       if (!id(schedule_enabled)) return {""};
-      if (id(schedule5_speed).current_option() == "Off") return {""};
       
       auto time = id(homeassistant_time).now();
       if (!time.is_valid()) return {""};
@@ -1274,23 +1295,23 @@ interval:
 
           Schedule schedules[5];
           schedules[0] = {id(schedule1_start).hour * 60 + id(schedule1_start).minute,
-                          id(schedule1_speed).current_option() != "Off",
+                          true,
                           id(schedule1_speed).current_option(),
                           id(schedule1_waterfall).state, 1};
           schedules[1] = {id(schedule2_start).hour * 60 + id(schedule2_start).minute,
-                          id(schedule2_speed).current_option() != "Off",
+                          true,
                           id(schedule2_speed).current_option(),
                           id(schedule2_waterfall).state, 2};
           schedules[2] = {id(schedule3_start).hour * 60 + id(schedule3_start).minute,
-                          id(schedule3_speed).current_option() != "Off",
+                          true,
                           id(schedule3_speed).current_option(),
                           id(schedule3_waterfall).state, 3};
           schedules[3] = {id(schedule4_start).hour * 60 + id(schedule4_start).minute,
-                          id(schedule4_speed).current_option() != "Off",
+                          true,
                           id(schedule4_speed).current_option(),
                           id(schedule4_waterfall).state, 4};
           schedules[4] = {id(schedule5_start).hour * 60 + id(schedule5_start).minute,
-                          id(schedule5_speed).current_option() != "Off",
+                          true,
                           id(schedule5_speed).current_option(),
                           id(schedule5_waterfall).state, 5};
 
@@ -1300,7 +1321,7 @@ interval:
           std::string target_speed = "Off";
           bool waterfall_active = false;
 
-          // Check if we're before the first enabled schedule or after pump end time
+          // Check if we're before the first schedule or after pump end time
           if (time_minutes >= pump_end) {
             // After pump end time - turn everything off
             ESP_LOGD("schedule", "After pump end time (%02d:%02d)", pump_end/60, pump_end%60);
@@ -1313,9 +1334,9 @@ interval:
                 active_schedule = i;
                 target_speed = schedules[i].speed;
                 waterfall_active = schedules[i].waterfall;
-                ESP_LOGD("schedule", "Schedule %d active: %s, Waterfall: %s (%02d:%02d - %02d:%02d)", 
-                         schedules[i].num, target_speed.c_str(), waterfall_active ? "On" : "Off",
-                         schedules[i].start/60, schedules[i].start%60, pump_end/60, pump_end%60);
+                ESP_LOGD("schedule", "Schedule %d active: %s, Waterfall: %s (%02d:%02d - %02d:%02d)",
+                schedules[i].num, target_speed.c_str(), waterfall_active ? "On" : "Off",
+                schedules[i].start/60, schedules[i].start%60, pump_end/60, pump_end%60);
                 break;
               }
             }
@@ -1323,7 +1344,20 @@ interval:
 
           // Apply pump speed
           if (active_schedule >= 0) {
-            if (target_speed == "Speed 1" && !id(pump_speed_switch_1).state) {
+            if (target_speed == "Off") {
+              // Schedule is active but set to Off — turn off pump
+              if (id(pump_speed_switch_1).state || id(pump_speed_switch_2).state ||
+                  id(pump_speed_switch_3).state || id(pump_speed_switch_4).state ||
+                  id(pump_speed_switch_5).state) {
+                ESP_LOGI("schedule", "Schedule %d set to Off - turning off pump",
+                         schedules[active_schedule].num);
+                id(pump_speed_switch_1).turn_off();
+                id(pump_speed_switch_2).turn_off();
+                id(pump_speed_switch_3).turn_off();
+                id(pump_speed_switch_4).turn_off();
+                id(pump_speed_switch_5).turn_off();
+              }
+            } else if (target_speed == "Speed 1" && !id(pump_speed_switch_1).state) {
               ESP_LOGI("schedule", "Activating Speed 1");
               id(pump_speed_switch_1).turn_on();
             } else if (target_speed == "Speed 2" && !id(pump_speed_switch_2).state) {
@@ -1341,8 +1375,8 @@ interval:
             }
           } else {
             // No schedule active - turn off pump
-            if (id(pump_speed_switch_1).state || id(pump_speed_switch_2).state || 
-                id(pump_speed_switch_3).state || id(pump_speed_switch_4).state || 
+            if (id(pump_speed_switch_1).state || id(pump_speed_switch_2).state ||
+                id(pump_speed_switch_3).state || id(pump_speed_switch_4).state ||
                 id(pump_speed_switch_5).state) {
               ESP_LOGI("schedule", "Outside scheduled times - turning off pump");
               id(pump_speed_switch_1).turn_off();
@@ -1359,12 +1393,13 @@ interval:
               if (waterfall_active) {
                 ESP_LOGI("schedule", "Activating Waterfall");
                 id(waterfall_switch).turn_on();
-              } else {
-                ESP_LOGI("schedule", "Turning off waterfall");
-                id(waterfall_switch).turn_off();
-              }
+            } else {
+              ESP_LOGI("schedule", "Turning off waterfall");
+              id(waterfall_switch).turn_off();
             }
           }
+        }
+
 
 script:
   - id: keep_alive_script
