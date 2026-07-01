@@ -1,5 +1,5 @@
 external_components:
-  - source: components/Pool_Automation/components
+  - source: ${components_src}  #components/Pool_Automation/components
     components: [pentair_if_ic]
     refresh: 0s
 
@@ -82,7 +82,7 @@ web_server:
 time:
   - platform: homeassistant
     id: homeassistant_time
-    timezone: !secret timezone
+    timezone: ${timezone} # use substitution from pool-controller.yaml
 
 button:
   - platform: template
