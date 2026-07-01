@@ -1393,9 +1393,10 @@ interval:
               if (waterfall_active) {
                 ESP_LOGI("schedule", "Activating Waterfall");
                 id(waterfall_switch).turn_on();
-            } else {
-              ESP_LOGI("schedule", "Turning off waterfall");
-              id(waterfall_switch).turn_off();
+              } else {
+                ESP_LOGI("schedule", "Turning off waterfall");
+                id(waterfall_switch).turn_off();
+              }
             }
           }
 
