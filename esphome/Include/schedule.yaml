@@ -1398,8 +1398,6 @@ interval:
               id(waterfall_switch).turn_off();
             }
           }
-        }
-
 
 script:
   - id: keep_alive_script
