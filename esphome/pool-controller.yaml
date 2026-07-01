@@ -7,6 +7,8 @@ substitutions:
   pentair_rx_pin: GPIO18
   right_arrow: "➡️"
   pentair_light_pin: GPIO46
+  timezone: "America/Los_Angeles"
+  components_src: "components/Pool_Automation/components"
 
 esphome:
   name: pool-controller
