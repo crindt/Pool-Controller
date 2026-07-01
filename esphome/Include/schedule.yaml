@@ -82,7 +82,7 @@ web_server:
 time:
   - platform: homeassistant
     id: homeassistant_time
-    timezone: America/New_York # Change to your timezone
+    timezone: "${timezone}"
 
 button:
   - platform: template
@@ -1096,53 +1096,46 @@ text_sensor:
     update_interval: 10s
     lambda: |-
       if (!id(schedule_enabled)) return {"${right_arrow}"};
-    
+      
       auto time = id(homeassistant_time).now();
       if (!time.is_valid()) return {""};
-    
+      
       int time_minutes = time.hour * 60 + time.minute;
       int pump_end = id(pump_end_time).hour * 60 + id(pump_end_time).minute;
-    
-      // Check if after pump end time
+      
       if (time_minutes >= pump_end) {
         return {"${right_arrow}"};
       }
-    
-      // Find the active schedule (same logic as the interval lambda)
-      // Check from Schedule 5 down to Schedule 1
+      
+      // Find the active schedule (backward scan, same as interval lambda)
       int s5_start = id(schedule5_start).hour * 60 + id(schedule5_start).minute;
       if (time_minutes >= s5_start) {
-        // Schedule 5 is active — show Off arrow if it's set to Off
         if (id(schedule5_speed).current_option() == "Off") return {"${right_arrow}"};
         return {""};
       }
-    
       int s4_start = id(schedule4_start).hour * 60 + id(schedule4_start).minute;
       if (time_minutes >= s4_start) {
         if (id(schedule4_speed).current_option() == "Off") return {"${right_arrow}"};
         return {""};
       }
-    
       int s3_start = id(schedule3_start).hour * 60 + id(schedule3_start).minute;
       if (time_minutes >= s3_start) {
         if (id(schedule3_speed).current_option() == "Off") return {"${right_arrow}"};
         return {""};
       }
-    
       int s2_start = id(schedule2_start).hour * 60 + id(schedule2_start).minute;
       if (time_minutes >= s2_start) {
         if (id(schedule2_speed).current_option() == "Off") return {"${right_arrow}"};
         return {""};
       }
-    
       int s1_start = id(schedule1_start).hour * 60 + id(schedule1_start).minute;
       if (time_minutes >= s1_start) {
         if (id(schedule1_speed).current_option() == "Off") return {"${right_arrow}"};
         return {""};
       }
-    
-      // Before first schedule start
+      
       return {"${right_arrow}"};
+
   
   - platform: template
     name: "Schedule 1 Status"
@@ -1162,7 +1155,7 @@ text_sensor:
       
       // Schedule 1 is active if: current time >= s1_start AND < s2_start (or s2 is off) AND < pump_end
       if (time_minutes >= s1_start && time_minutes < pump_end) {
-        if (id(schedule2_speed).current_option() == "Off" || time_minutes < s2_start) {
+        if (time_minutes < s2_start) {
           return {"${right_arrow}"};
         }
       }
@@ -1186,7 +1179,7 @@ text_sensor:
       
       // Schedule 2 is active if: current time >= s2_start AND < s3_start (or s3 is off) AND < pump_end
       if (time_minutes >= s2_start && time_minutes < pump_end) {
-        if (id(schedule3_speed).current_option() == "Off" || time_minutes < s3_start) {
+        if (time_minutes < s3_start) {
           return {"${right_arrow}"};
         }
       }
@@ -1210,7 +1203,7 @@ text_sensor:
       
       // Schedule 3 is active if: current time >= s3_start AND < s4_start (or s4 is off) AND < pump_end
       if (time_minutes >= s3_start && time_minutes < pump_end) {
-        if (id(schedule4_speed).current_option() == "Off" || time_minutes < s4_start) {
+        if (time_minutes < s4_start) {
           return {"${right_arrow}"};
         }
       }
@@ -1234,7 +1227,7 @@ text_sensor:
       
       // Schedule 4 is active if: current time >= s4_start AND < s5_start (or s5 is off) AND < pump_end
       if (time_minutes >= s4_start && time_minutes < pump_end) {
-        if (id(schedule5_speed).current_option() == "Off" || time_minutes < s5_start) {
+        if (time_minutes < s5_start) {
           return {"${right_arrow}"};
         }
       }
