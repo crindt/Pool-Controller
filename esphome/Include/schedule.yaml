@@ -82,7 +82,7 @@ web_server:
 time:
   - platform: homeassistant
     id: homeassistant_time
-    timezone: "${timezone}"
+    timezone: ${timezone}
 
 button:
   - platform: template
